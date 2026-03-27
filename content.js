@@ -45,5 +45,5 @@ function removeResult() {
   if (el) el.remove();
 }
 
-// Wait for Google to load the search bar
+
 setTimeout(initGoogleObserver, 1000);
