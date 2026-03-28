@@ -1,11 +1,14 @@
-const settingsView = document.getElementById('settingsView');
-const linksList = document.getElementById('linksList');
-const searchBar = document.getElementById('searchBar');
+document.addEventListener('DOMContentLoaded', () => {
+  renderLinks();
+});
 
+document.getElementById('openSettings').onclick = () => {
+  document.getElementById('settingsView').classList.add('active');
+};
 
-document.getElementById('openSettings').onclick = () => settingsView.classList.add('active');
-document.getElementById('closeSettings').onclick = () => settingsView.classList.remove('active');
-
+document.getElementById('closeSettings').onclick = () => {
+  document.getElementById('settingsView').classList.remove('active');
+};
 
 document.getElementById('saveBtn').onclick = () => {
   const name = document.getElementById('newName').value;
@@ -14,31 +17,48 @@ document.getElementById('saveBtn').onclick = () => {
 
   if (name && url) {
     chrome.storage.local.get({ myLinks: [] }, (data) => {
-      const newList = [...data.myLinks, { name, url, info }];
-      chrome.storage.local.set({ myLinks: newList }, () => {
-        settingsView.classList.remove('active');
-        document.querySelectorAll('.form-input').forEach(i => i.value = '');
+      const myLinks = data.myLinks;
+      myLinks.push({ id: Date.now(), name, url, info });
+      chrome.storage.local.set({ myLinks }, () => {
         renderLinks();
+        document.getElementById('settingsView').classList.remove('active');
+        document.getElementById('newName').value = '';
+        document.getElementById('newUrl').value = '';
+        document.getElementById('newInfo').value = '';
       });
     });
   }
 };
 
+document.getElementById('searchBar').oninput = (e) => {
+  renderLinks(e.target.value.toLowerCase());
+};
 
-function renderLinks(term = "") {
+function renderLinks(filter = '') {
   chrome.storage.local.get({ myLinks: [] }, (data) => {
-    linksList.innerHTML = '';
-    const filtered = data.myLinks.filter(l => l.name.toLowerCase().includes(term.toLowerCase()));
+    const list = document.getElementById('linksList');
+    list.innerHTML = '';
+    const filtered = data.myLinks.filter(l => l.name.toLowerCase().includes(filter));
     
-    filtered.forEach(link => {
+    filtered.forEach(item => {
       const div = document.createElement('div');
       div.className = 'link-item';
-      div.innerHTML = `<strong>${link.name}</strong><br><small style="color:#70757a">${link.info}</small>`;
-      div.onclick = () => chrome.tabs.create({ url: link.url.includes('://') ? link.url : 'https://' + link.url });
-      linksList.appendChild(div);
+      div.innerText = item.name;
+      div.onclick = () => window.open(item.url.includes('://') ? item.url : 'https://' + item.url, '_blank');
+      div.oncontextmenu = (e) => {
+        e.preventDefault();
+        if (confirm(`Delete "${item.name}"?`)) {
+          deleteLink(item.id);
+        }
+      };
+      list.appendChild(div);
     });
   });
 }
 
-searchBar.oninput = (e) => renderLinks(e.target.value);
-renderLinks();
+function deleteLink(id) {
+  chrome.storage.local.get({ myLinks: [] }, (data) => {
+    const myLinks = data.myLinks.filter(l => l.id !== id);
+    chrome.storage.local.set({ myLinks }, () => renderLinks());
+  });
+}
